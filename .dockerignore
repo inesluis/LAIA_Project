@@ -1,0 +1,61 @@
+# ── Controlo de versões e CI ──
+.git/
+.github/
+.gitignore
+.dvc/
+.pre-commit-config.yaml
+
+# ── Dados (montados como volume no contentor de treino, nunca copiados) ──
+data/
+*.zip
+*.parquet
+*.csv
+
+# ── Modelos e MLflow local (a API carrega o modelo do Model Registry) ──
+models/
+artifacts/
+mlruns/
+mlartifacts/
+mlflow.db
+*.pkl
+*.joblib
+*.onnx
+*.lgb
+
+# ── Segredos (passados como variáveis de ambiente em runtime) ──
+.env
+.env.*
+*.pem
+*.key
+
+# ── Não necessários para correr o código ──
+notebooks/
+docs/
+tests/
+deploy/
+scripts/
+docker/
+Makefile
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# ── Testes, lint e cobertura ──
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# ── Editores e sistema operativo ──
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
