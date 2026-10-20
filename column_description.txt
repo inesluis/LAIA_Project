@@ -1,0 +1,45 @@
+Ficheiro : T_ONTIME_REPORTING_completo.csv
+
+criado concatenando os csvs referentes a cada mês dos anos de 2022 e 2023 ( feito no ficheiro dataset_analysis.ipynb)
+
+nº de linhas: 13 577 024
+nº de colunas: 28
+
+
+
+YEAR  - int  (2022 ou 2023 - há mais registos de 2k23 do que de 2k22)
+QUARTER - int  (1,2,3 ou 4)
+MONTH  - int (1 a 12)
+DAY_OF_MONTH - int (1 A 31)
+DAY_OF_WEEK  - int (1 a 7 - 1 segunda 7 domingo)
+FL_DATE  - object (12/31/2023 12:00:00 AM)
+OP_UNIQUE_CARRIER  - object (Unique Carrier Code - ex: AA)
+ORIGIN_AIRPORT_ID  - int (372 valores únicos) (Origin Airport, Airport ID. An identification number assigned by US DOT to identify a unique airport. Use this field for airport analysis across a range of years because an airport can change its airport code and airport codes can be reused.)
+ORIGIN_AIRPORT_SEQ_ID  - int (428 valores únicos) (Origin Airport, Airport Sequence ID. An identification number assigned by US DOT to identify a unique airport at a given point of time. Airport attributes, such as airport name or coordinates, may change over time.)
+ORIGIN_CITY_MARKET_ID  - int (348 valores únicos) (Origin Airport, City Market ID. City Market ID is an identification number assigned by US DOT to identify a city market. Use this field to consolidate airports serving the same city market.)
+ORIGIN_CITY_NAME  - object (366 valores únicos) 
+DEST_AIRPORT_ID  - int (373 valores únicos) (Destination Airport, Airport ID. An identification number assigned by US DOT to identify a unique airport. Use this field for airport analysis across a range of years because an airport can change its airport code and airport codes can be reused.)
+DEST_AIRPORT_SEQ_ID  - int (429 valores únicos) (Destination Airport, Airport Sequence ID. An identification number assigned by US DOT to identify a unique airport at a given point of time. Airport attributes, such as airport name or coordinates, may change over time.)
+DEST_CITY_MARKET_ID  - int (349 valores únicos) (Destination Airport, City Market ID. City Market ID is an identification number assigned by US DOT to identify a city market. Use this field to consolidate airports serving the same city market.)
+DEST_CITY_NAME  - object (367 valores únicos)
+CRS_DEP_TIME  - int (horas de partidas) (CRS Departure Time (local time: hhmm)) (the scheduled departure time of a flight as recorded in a Computer Reservation System (CRS))
+DEP_TIME  - float (261738 nulos) (Actual Departure Time (local time: hhmm))
+DEP_DELAY  - float (261877 nulos) (Difference in minutes between scheduled and actual departure time. Early departures show negative numbers.)
+DEP_DELAY_NEW  - float (261877 nulos) (Difference in minutes between scheduled and actual departure time. Early departures set to 0.)
+DEP_DEL15 - float (261877 nulos) (1 ou 0) (Departure Delay Indicator, 15 Minutes or More (1=Yes))
+DEP_DELAY_GROUP  - float (261877 nulos) (Departure Delay intervals, every (15 minutes from <-15 to >180)) (tradução num csv na pasta Data)
+CRS_ARR_TIME  - int (CRS Arrival Time (local time: hhmm)) (the scheduled arrival time of a flight as recorded in a Computer Reservation System (CRS))
+ARR_TIME  - float (272574 nulos) (Actual Arrival Time (local time: hhmm))
+ARR_DELAY  - float (301609 nulos) (Difference in minutes between scheduled and actual arrival time. Early arrivals show negative numbers)
+ARR_DELAY_NEW  - float (301609 nulos) (Difference in minutes between scheduled and actual arrival time. Early arrivals set to 0.)
+ARR_DEL15  - float (301609 nulos) (1 ou 0) (Arrival Delay Indicator, 15 Minutes or More (1=Yes))
+CANCELLED  - float (1 ou 0) (Cancelled Flight Indicator (1=Yes))
+DIVERTED  - float (1 ou 0) (Diverted Flight Indicator (1=Yes))
+
+
+
+
+
+### apontamentos
+- ver se dá para transformar os valores das horas de float para int (podem estar em float por causa de nulos - verificar)
+
