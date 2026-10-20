@@ -40,6 +40,33 @@ DIVERTED  - float (1 ou 0) (Diverted Flight Indicator (1=Yes))
 
 
 
+colunas não usadas:
+
+DOT_ID_Reporting_Airline, IATA_CODE_Reporting_Airline - outros dados para definir o nome/id de uma companhia. Já usamos OP_UNIQUE_CARRIER
+Tail_Number, Flight_Number_Reporting_Airline - não achei relevantes. nº de avião e do voo não contribuierá para a nossa função objetivo
+Origin - aeroporto de origem já obtemos isso com a coluna ORIGIN_AIRPORT_ID e ORIGIN_AIRPORT_SEQ_ID
+OriginState - estado de origem(código). não achei relevante na altura. talvez repensar o seu uso
+OriginStateFips - id de estado. mesmo que a anterior
+OriginStateName - idem aspas aspas
+OriginWac - world area code. mesma conclusão. usar só um destes se assim considerarmos importante
+Dest - já coberto por DEST_AIRPORT_ID e DEST_AIRPORT_SEQ_ID
+DestState, DestStateFips, DestStateName - informação do estado de destino, repensar. 
+DestWac - worl area code. parece menos importante que um dos anteriores
+DepTimeBlk - horas da partida, possivel retirar de DEP_TIME
+TaxiOut - the total time an aircraft spends moving on the ground from the moment it pushes back or leaves the parking gate (Actual Off-Block Time) until it actually takes off (Actual Take-Off Time). repensar o seu uso.  talvez data leakage também. perguntar professor
+WheelsOff - the exact timestamp when an aircraft's landing gear completely loses contact with the runway and the plane becomes airborne. talvez se queria usar. ns se não é redondante a outros timestamps DATA LEAKAGE!!!
+WheelsOn - mesmo
+TaxiIn - inverso de TaxiOut
+ArrTimeBlk - mesmo que DepTimeBlk
+CancellationCode - razão do cancelamento. não usamos amostras com cancelamentos
+CRSElapsedTime, ActualElapsedTime, AirTime - dados que não temos na partida de um voo.
+Distance, DistanceGroup - distância entre aeroportos. pensar o seu uso
+colunas do segmento: Cause of Delay (Data starts 6/2003) - data leakage. não temos acessos aos dados antes de um atraso
+colunas do segemento: Gate Return Information at Origin Airport (Data starts 10/2008) - mesma conclusão
+colunas do segemento: Diverted Airport Information (Data starts 10/2008) - também não interessam que não usamo voos com *divergências*
+
+
+
 ### apontamentos
 - ver se dá para transformar os valores das horas de float para int (podem estar em float por causa de nulos - verificar)
 
