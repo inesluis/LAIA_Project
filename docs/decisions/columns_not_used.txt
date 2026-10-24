@@ -1,0 +1,28 @@
+Colunas eliminadas para a criação do dataset_completo.v2.csv:
+
+FL_DATE  - object (12/31/2023 12:00:00 AM) - informação pouca relevante e já contida em outras colunas usadas
+DOT_ID_Reporting_Airline, IATA_CODE_Reporting_Airline - outros dados para definir o nome/id de uma companhia. Já usamos OP_UNIQUE_CARRIER
+Tail_Number, Flight_Number_Reporting_Airline - não achei relevantes. nº de avião e do voo não contribuirá para a nossa função objetivo
+ORIGIN_AIRPORT_SEQ_ID  - já usamos ID
+ORIGIN_CITY_NAME  - object (366 valores únicos) - usamos ORIGIN_CITY_MARKET_ID
+Origin - aeroporto de origem já obtemos isso com a coluna ORIGIN_AIRPORT_ID e ORIGIN_AIRPORT_SEQ_ID
+OriginState, OriginStateName - usamos statefips 
+OriginWac - world area code. não nos dá mais informação que o statefips
+DEST_AIRPORT_SEQ_ID  - int (429 valores únicos) - já usamos DEST_AIRPORT_ID
+DEST_CITY_NAME  - object (367 valores únicos) - usamos DEST_CITY_MARKET_ID em vez
+Dest - já coberto por DEST_AIRPORT_ID e DEST_AIRPORT_SEQ_ID
+ORIGIN_CITY_NAME  - object (366 valores únicos) - usamos DEST_CITY_MARKET_ID
+DestState, DestStateName - usa-se DestStateFips
+DestWac - worl area code. parece menos importante que um dos anteriores
+DepTimeBlk, ArrTimeBlk  - já obtemos mesma informação no CRSDepTime e CRSArrTime respetivamente
+DEP_TIME, DEP_DELAY, DEP_DELAY_NEW, DEP_DEL15, DEP_DELAY_GROUP, TaxiOut, WheelsOff, WheelsOn, TaxiIn,   - DATA LEAKAGE
+ARR_TIME, ActualElapsedTime, AirTime  - DATA LEAKAGE
+ARR_DELAY_NEW  -  (Difference in minutes between scheduled and actual arrival time. Early arrivals set to 0.) - usa-se ARR_DELAY
+ARR_DEL15  -  (1 ou 0) (Arrival Delay Indicator, 15 Minutes or More (1=Yes)) - usa-se ARR_DELAY
+CancellationCode - razão do cancelamento. não usamos amostras com cancelamentos
+colunas do segmento: Cause of Delay (Data starts 6/2003) - DATA LEAKAGE
+colunas do segemento: Gate Return Information at Origin Airport (Data starts 10/2008) - não usamos info de dados cancelados
+colunas do segemento: Diverted Airport Information (Data starts 10/2008) - também não interessam que não usamo voos com *divergências*
+
+
+
