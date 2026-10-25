@@ -1,6 +1,6 @@
 Ficheiro : data/dataset_completo.v2.csv
 
-criado concatenando os csvs referentes a cada mês dos anos de 2022 e 2023 ( feito no ficheiro dataset_analysis.ipynb)
+criado concatenando os csvs referentes a cada mês dos anos de 2022 e 2023 ( feito no ficheiro dataset_modifications.ipynb)
 
 nº de linhas: 13 577 024
 nº de colunas: 21
