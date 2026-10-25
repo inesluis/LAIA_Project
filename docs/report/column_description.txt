@@ -1,0 +1,36 @@
+Ficheiro : data/dataset_completo.v2.csv
+
+criado concatenando os csvs referentes a cada mês dos anos de 2022 e 2023 ( feito no ficheiro dataset_analysis.ipynb)
+
+nº de linhas: 13 577 024
+nº de colunas: 21
+
+
+
+Year  - int  (2022 ou 2023 - há mais registos de 2k23 do que de 2k22)
+Quarter - int  (1,2,3 ou 4)
+Month  - int (1 a 12)
+DayofMonth - int (1 A 31)
+DayOfWeek  - int (1 a 7 - 1 segunda 7 domingo)
+Reporting_Airline  - object (Unique Carrier Code - ex: AA)
+OriginAirportID  - int (372 valores únicos) (Origin Airport, Airport ID. An identification number assigned by US DOT to identify a unique airport. Use this field for airport analysis across a range of years because an airport can change its airport code and airport codes can be reused.)
+OriginCityMarketID  - int (348 valores únicos) (Origin Airport, City Market ID. City Market ID is an identification number assigned by US DOT to identify a city market. Use this field to consolidate airports serving the same city market.)
+OriginStateFips - int (53 valores únicos) (código para cada estado e regiões autónomas/colónias de férias)
+DestAirportID  - int (373 valores únicos) (Destination Airport, Airport ID. An identification number assigned by US DOT to identify a unique airport. Use this field for airport analysis across a range of years because an airport can change its airport code and airport codes can be reused.)
+DestCityMarketID  - int (349 valores únicos) (Destination Airport, City Market ID. City Market ID is an identification number assigned by US DOT to identify a city market. Use this field to consolidate airports serving the same city market.)
+DestStateFips - int (53 valores únicos) (código para cada estado e regiões autónomas/colónias de férias)
+Distance, DistanceGroup - distância entre aeroportos.
+CRSDepTime  - int (horas de partidas) (CRS Departure Time (local time: hhmm)) (the scheduled departure time of a flight as recorded in a Computer Reservation System (CRS))
+CRSArrTime  - int (CRS Arrival Time (local time: hhmm)) (the scheduled arrival time of a flight as recorded in a Computer Reservation System (CRS))
+ArrDelay  - float (301609 nulos) (Difference in minutes between scheduled and actual arrival time. Early arrivals show negative numbers)
+Cancelled  - float (1 ou 0) (Cancelled Flight Indicator (1=Yes))
+Diverted  - float (1 ou 0) (Diverted Flight Indicator (1=Yes))
+CRSElapsedTime  - int (vai de -272 a 1425) (CRS Elapsed Time of Flight, in Minutes) (tempo previsto de voo)
+Distance  - int (de 21 a 5095)
+DistanceGroup  - int (ordinal de 1 a 12) (map presente na diretoria data/raw/metadados_colunas)
+
+
+### apontamentos
+- ver se dá para transformar os valores das horas de float para int (podem estar em float por causa de nulos - verificar)
+- transformar colunas que são ids em categóricas
+
