@@ -1,0 +1,11 @@
+name: Test self-hosted runner
+on:
+  workflow_dispatch:
+  push:
+    branches: [ci/test-runner]
+jobs:
+    test:
+        runs-on: [self-hosted, Linux, X64]
+        steps:
+            - uses: actions/checkout@v4
+            - run: hostname && whoami && docker --version
