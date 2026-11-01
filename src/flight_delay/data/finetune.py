@@ -13,7 +13,7 @@ from preprocessing import load_dataset, clean_flight_data, build_preprocessor, T
 # ==============================================================================
 # 1. CARREGAMENTO E PREPARAÇÃO DOS DADOS
 # ==============================================================================
-csv_path = Path(__file__).resolve().parents[2] / "data" / "dataset_completo_limpo.v2.csv" 
+csv_path = Path(__file__).resolve().parents[3] / "data" / "dataset_completo_limpo.v3.csv" 
 
 df = clean_flight_data(load_dataset(csv_path))
 
