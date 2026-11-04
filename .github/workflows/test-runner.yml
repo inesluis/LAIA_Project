@@ -5,7 +5,7 @@ on:
     branches: [ci/test-runner]
 jobs:
     test:
-        runs-on: [self-hosted, Linux, X64]
+        runs-on: model-serving
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
             - run: hostname && whoami && docker --version
