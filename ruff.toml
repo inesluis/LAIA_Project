@@ -1,0 +1,15 @@
+# Configuração do ruff (lint). Corre no CI e localmente com: ruff check .
+target-version = "py311"
+src = ["src", "tests"]
+
+# Os notebooks são exploração; o código "oficial" está nos .py.
+extend-exclude = ["*.ipynb", "notebooks"]
+
+[lint]
+# E/F: erros de sintaxe, nomes indefinidos, imports não usados, variáveis não usadas.
+# Regras a considerar mais tarde (o código atual ainda não as cumpre;
+# "ruff check --fix" corrige quase tudo automaticamente):
+#   "I" (ordem dos imports), "UP" (sintaxe Python moderna), "B" (erros comuns)
+select = ["E", "F"]
+# Linhas compridas não são erro: o formato fica para cada um.
+ignore = ["E501"]
