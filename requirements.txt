@@ -1,0 +1,30 @@
+# Dependências do projeto: API, treino, testes e lint, tudo num só ficheiro.
+# Versões fixas para que o CI, as VMs, a imagem Docker e os PCs da equipa instalem exatamente o mesmo.
+# Python 3.11 (o mesmo do Dockerfile.mlflow).
+# Instalar no PC com: pip install -r requirements.txt
+
+# API
+fastapi==0.162.0
+uvicorn==0.54.0
+pydantic==2.14.2
+
+# Dados e modelo
+numpy==2.4.6
+pandas==2.3.3
+scikit-learn==1.9.1
+# xgboost-cpu: o mesmo xgboost (faz-se "import xgboost" na mesma), sem as bibliotecas
+# de GPU da NVIDIA. A imagem fica muito mais pequena e as VMs não têm GPU.
+xgboost-cpu==3.2.0
+
+# Carregar o modelo do MLflow Model Registry.
+# Tem de ser a mesma versão do servidor na VM1 (docker/Dockerfile.mlflow).
+mlflow==3.5.0
+
+# Treino: afinação de hiperparâmetros
+optuna==5.0.0
+
+# Testes e lint (não são precisos para a API correr, mas ficam aqui por simplicidade)
+pytest==9.2.0
+pytest-cov==7.1.0  # cobertura de testes: que linhas e ramos do código os testes executam
+httpx2==2.16.0  # usado pelo TestClient do FastAPI nos testes da API (substitui o httpx)
+ruff==0.17.3    # lint: deteta erros e problemas de estilo no código
