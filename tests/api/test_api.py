@@ -85,6 +85,22 @@ def test_order_is_preserved(client):
     r = post(client, ByDistanceModel(), [FLIGHT, long_flight, FLIGHT])
     assert r.json() == {"classifications": ["on_time", "severe_delay", "on_time"]}
 
+class NumericModel:
+    # como o Target do treino: 0 = on_time, 1 = moderate, 2 = severe
+    def predict(self, df):
+        return [0, 1, 2]
+
+def test_numeric_predictions_are_converted_to_labels(client):
+    r = post(client, NumericModel(), [FLIGHT, FLIGHT, FLIGHT])
+    assert r.status_code == 200
+    assert r.json() == {"classifications": ["on_time", "moderate_delay", "severe_delay"]}
+
+def test_unknown_number_returns_500(client):
+    class OutOfRangeModel:
+        def predict(self, df):
+            return [3]
+    assert post(client, OutOfRangeModel(), [FLIGHT]).status_code == 500
+
 # ---------- model_loader.py ----------
 
 def test_load_model_without_uri_gives_dummy():

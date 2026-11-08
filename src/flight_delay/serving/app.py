@@ -7,6 +7,9 @@ from .model_loader import load_model
 from .schemas import ClassifyRequest, ClassifyResponse
 
 VALID_LABELS = {"on_time", "moderate_delay", "severe_delay"}
+# Target do treino: 0/1/2 -> rótulos pedidos pelos docentes. Texto passa tal e qual.
+# shortcut: só inteiros ("0"), não floats ("0.0"); alargar se o modelo devolver floats.
+NUMERIC_TO_LABEL = {"0": "on_time", "1": "moderate_delay", "2": "severe_delay"}
 state = {}
 
 @asynccontextmanager
@@ -33,6 +36,7 @@ def classify(req: ClassifyRequest):
 
     try:
         preds = [str(p) for p in state["model"].predict(df)]
+        preds = [NUMERIC_TO_LABEL.get(p, p) for p in preds]
     except Exception:
         # nunca expor o traceback ao cliente.
         raise HTTPException(status_code=500, detail="Erro interno na inferência.")
