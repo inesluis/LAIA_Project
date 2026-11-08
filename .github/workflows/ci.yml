@@ -53,8 +53,10 @@ jobs:
       - name: Lint (ruff)
         run: ruff check --output-format=github .
 
-      - name: Testes (pytest)
-        run: pytest
+      # Mostra a cobertura da API (linhas e ramos if/else executados pelos testes).
+      # Ainda sem --cov-fail-under: por agora só informa, não bloqueia PRs.
+      - name: Testes (pytest + cobertura da API)
+        run: pytest --cov=flight_delay.serving --cov-branch
 
   build:
     name: Build e smoke test da imagem

@@ -25,5 +25,6 @@ optuna==5.0.0
 
 # Testes e lint (não são precisos para a API correr, mas ficam aqui por simplicidade)
 pytest==9.2.0
+pytest-cov==7.1.0  # cobertura de testes: que linhas e ramos do código os testes executam
 httpx2==2.16.0  # usado pelo TestClient do FastAPI nos testes da API (substitui o httpx)
 ruff==0.17.3    # lint: deteta erros e problemas de estilo no código
