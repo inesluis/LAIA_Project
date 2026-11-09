@@ -1,0 +1,21 @@
+services:
+  mlflow:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.mlflow
+
+    container_name: mlflow-server
+
+    ports:
+      - "5000:5000"
+
+    volumes:
+      - mlflow_data:/mlflow
+
+    environment:
+      MLFLOW_SERVER_ALLOWED_HOSTS: "localhost,127.0.0.1,10.6.0.80"
+
+    restart: unless-stopped
+
+volumes:
+  mlflow_data:
