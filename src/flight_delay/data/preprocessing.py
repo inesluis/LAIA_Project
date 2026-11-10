@@ -122,6 +122,27 @@ def data_engineering(df: pd.DataFrame) -> pd.DataFrame:
     df.drop(columns=['CRSDEPTIME','CRSARRTIME'],inplace=True)
     return df
 
+# calcular features com informação de voos anteriores (com classes ou atraso médio(continuo)) - fazer diferentes médias eventualmente (3 a 10 voos por exemplo)
+# procurar features que capturem dimensao temporal - ver padrões habituais e depois ultimos valores
+
+
+def prepare_data(df: pd.DataFrame,treino:bool=True) -> pd.DataFrame:
+    """
+    Executa a sequência completa de pré-processamento:
+      1. Adiciona a coluna TARGET.
+      2. Remove inconsistências de integridade física.
+      3. Converte os tipos de dados para otimização de memória.
+      4. Cria novos atributos derivados.
+      5. Converte os nomes das colunas para maiúsculas.
+    """
+    if treino:
+        df_prepared = add_target(df)
+    df_prepared = upper_columns_names(df_prepared)
+    df_prepared = clean_flight_data(df_prepared)
+    df_prepared = type_transformation(df_prepared)
+    df_prepared = data_engineering(df_prepared)
+    
+    return df_prepared
 
 def build_preprocessor(
     numeric_cols: Optional[List[str]] = None,
