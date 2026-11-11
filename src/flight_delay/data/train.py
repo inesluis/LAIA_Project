@@ -94,13 +94,15 @@ def train(df):
         ]
     )
     try:
-        with mlflow.start_run(run_name="xgb_v1_dataset_v2"):
+        with mlflow.start_run(run_name="xgb_v1"):
 
             # treino
-            pipeline.fit(X_train,y_train,)
+            pipeline.fit(X_train, y_train)
+
 
             # previsão
             y_pred = pipeline.predict(X_test)
+
 
             # métricas
             accuracy = accuracy_score(y_test,y_pred,)
@@ -158,23 +160,28 @@ def train(df):
 
             mlflow.log_dict({"confusion_matrix": cm.tolist()},"confusion_matrix.json",)
 
+
+            sample = X_train.sample(
+                100,
+                random_state=42
+            )
+
             signature = infer_signature(
-                            X_train,
-                            pipeline.predict(
-                                X_train.head(10)
-                            ),
-                        )
+                sample,
+                pipeline.predict(sample)
+            )
+
             
             mlflow.sklearn.log_model(
                 sk_model=pipeline,
-                name="pipeline",
+                artifact_path="pipeline",
                 registered_model_name="xgboost_v1",
                 signature=signature,
                 input_example=X_train.head(3),
                 )
-
             print(f"Accuracy: {accuracy:.4f}")
             print(f"F1 Macro: {f1:.4f}")
+
 
     except Exception as e:
         print(f"Erro durante o treino: {e}")
