@@ -1,0 +1,147 @@
+# CI — Integração Contínua
+#
+# Em cada PR e em cada push para dev/main:
+#   1. lint (ruff) + testes (pytest), com o modelo dummy
+#   2. build da imagem Docker da API + smoke test do container
+#   3. só em push (depois do merge): envia a imagem para o GHCR,
+#      com a etiqueta = SHA do commit
+#
+# Corre nos computadores do GitHub (ubuntu-latest), nunca nas VMs:
+# executa código de PRs que ainda não foi revisto.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+  workflow_dispatch:   # botão "Run workflow" no separador Actions
+
+# Por defeito, o workflow só pode ler o repositório.
+permissions:
+  contents: read
+
+# Um push novo no mesmo branch/PR cancela a execução anterior, que já está desatualizada.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  test:
+    name: Lint e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v7
+
+      - name: Instalar Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip   # guarda os pacotes entre execuções (CI mais rápido)
+          cache-dependency-path: requirements.txt
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Lint (ruff)
+        run: ruff check --output-format=github .
+
+      # Mostra a cobertura da API (linhas e ramos if/else executados pelos testes).
+      # Ainda sem --cov-fail-under: por agora só informa, não bloqueia PRs.
+      - name: Testes (pytest + cobertura da API)
+        run: pytest --cov=flight_delay.serving --cov-branch
+
+  build:
+    name: Build e smoke test da imagem
+    needs: test   # só corre se o lint e os testes passarem
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write   # necessário para enviar a imagem para o GHCR
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v7
+
+      # Os nomes de imagens Docker têm de estar em minúsculas,
+      # mas o nome do repositório tem maiúsculas (LAIA_Project).
+      - name: Definir o nome da imagem
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/api" >> "$GITHUB_ENV"
+
+      - name: Preparar o Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build da imagem
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile.api
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+          load: true    # fica disponível no Docker local, para o smoke test
+          push: false   # o envio só acontece depois, se o smoke test passar
+          # Reaproveita camadas de builds anteriores (ex.: o pip install).
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test do container
+        run: |
+          docker run -d --name api-ci -p 8000:8000 "$IMAGE:${{ github.sha }}"
+
+          echo "À espera que a API arranque..."
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8000/health && break
+            sleep 2
+          done
+          curl -fsS http://localhost:8000/health > /dev/null || { echo "A API não arrancou"; exit 1; }
+
+          echo
+          echo "Pedido de exemplo ao /classify (formato do enunciado):"
+          curl -fsS -X POST http://localhost:8000/classify \
+            -H "Content-Type: application/json" \
+            -d '{"instances": [
+                  {"FL_DATE": "2025-05-15", "OP_UNIQUE_CARRIER": "AA", "ORIGIN": "JFK", "DEST": "LAX",
+                   "CRS_DEP_TIME": 830, "CRS_ARR_TIME": 1145, "CRS_ELAPSED_TIME": 375, "DISTANCE": 2475},
+                  {"FL_DATE": "2025-05-16", "OP_UNIQUE_CARRIER": "DL", "ORIGIN": "ATL", "DEST": "ORD",
+                   "CRS_DEP_TIME": 1400, "CRS_ARR_TIME": 1530, "CRS_ELAPSED_TIME": 150, "DISTANCE": 606}
+                ]}' \
+            -o response.json
+          cat response.json
+
+          # Confirma o formato da resposta: 2 voos -> 2 rótulos válidos.
+          python3 -c '
+          import json
+          labels = json.load(open("response.json"))["classifications"]
+          assert len(labels) == 2, labels
+          assert set(labels) <= {"on_time", "moderate_delay", "severe_delay"}, labels
+          print("Smoke test OK:", labels)
+          '
+
+      - name: Logs do container (se algo falhou)
+        if: failure()
+        run: docker logs api-ci || true
+
+      # ── Daqui para baixo só corre em push para dev/main (depois do merge) ──
+      # Em PRs a imagem é construída e testada, mas não é enviada:
+      # para o GHCR só vão imagens de código revisto e aprovado.
+
+      - name: Login no GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}   # criado automaticamente pelo GitHub
+
+      - name: Enviar a imagem para o GHCR
+        if: github.event_name == 'push'
+        run: |
+          docker push "$IMAGE:${{ github.sha }}"
+          echo "Imagem enviada: $IMAGE:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
