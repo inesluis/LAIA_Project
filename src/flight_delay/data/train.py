@@ -1,9 +1,8 @@
 import json
 from pathlib import Path
-import joblib
 import mlflow
 import mlflow.sklearn
-from xgboost import Booster, XGBClassifier
+from xgboost import XGBClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import (
     accuracy_score,

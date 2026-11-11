@@ -1,7 +1,6 @@
 import time
 import optuna
 import numpy as np
-import pandas as pd
 from pathlib import Path
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import f1_score
