@@ -11,7 +11,7 @@ pydantic==2.14.2
 # Dados e modelo
 pyarrow==15.0.2
 joblib==1.4.2
-numpy==2.4.6
+numpy==1.26.4
 pandas==2.3.3
 scikit-learn==1.9.1
 # xgboost-cpu: o mesmo xgboost (faz-se "import xgboost" na mesma), sem as bibliotecas
