@@ -35,6 +35,7 @@ build/
 dist/
 .venv/
 venv/
+.venv*
 
 # ── Testes, lint e cobertura ──
 .pytest_cache/
@@ -59,3 +60,5 @@ deploy/prometheus/data/
 .idea/
 .DS_Store
 Thumbs.db
+
+*.db

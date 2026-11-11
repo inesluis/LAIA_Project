@@ -9,12 +9,22 @@ uvicorn==0.54.0
 pydantic==2.14.2
 
 # Dados e modelo
-numpy==2.4.6
+pyarrow==15.0.2
+joblib==1.4.2
+numpy==1.26.4
 pandas==2.3.3
 scikit-learn==1.9.1
 # xgboost-cpu: o mesmo xgboost (faz-se "import xgboost" na mesma), sem as bibliotecas
 # de GPU da NVIDIA. A imagem fica muito mais pequena e as VMs não têm GPU.
 xgboost-cpu==3.2.0
+xgboost==2.1.4
+
+# Visualização e análise
+matplotlib==3.9.2
+seaborn==0.13.2
+
+# Encoding alternativo (caso testes TargetEncoder)
+category-encoders==2.6.4
 
 # Carregar o modelo do MLflow Model Registry.
 # Tem de ser a mesma versão do servidor na VM1 (docker/Dockerfile.mlflow).
