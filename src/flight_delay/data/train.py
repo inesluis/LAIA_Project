@@ -75,6 +75,7 @@ def train(df):
         **best_params,
         random_state=42,
         device='cuda',
+        tree_method="hist",
         num_class=3,
         n_jobs=-1,
     )
@@ -93,7 +94,7 @@ def train(df):
         ]
     )
     try:
-        with mlflow.start_run():
+        with mlflow.start_run(run_name="xgb_v1_dataset_v2"):
 
             # treino
             pipeline.fit(X_train,y_train,)
@@ -156,21 +157,21 @@ def train(df):
             mlflow.log_dict(report,"classification_report.json",)
 
             mlflow.log_dict({"confusion_matrix": cm.tolist()},"confusion_matrix.json",)
-            models_dir = Path("models")
-            models_dir.mkdir(exist_ok=True)
 
-            model_path = models_dir / "xgboost_v1.1.pkl"
-
-            joblib.dump(
-                pipeline,
-                model_path
-            )
-
-            # guardar modelo como artefacto no MLflow
-
-            mlflow.log_artifact(
-                str(model_path)
-    )
+            signature = infer_signature(
+                            X_train,
+                            pipeline.predict(
+                                X_train.head(10)
+                            ),
+                        )
+            
+            mlflow.sklearn.log_model(
+                sk_model=pipeline,
+                name="pipeline",
+                registered_model_name="xgboost_v1",
+                signature=signature,
+                input_example=X_train.head(3),
+                )
 
             print(f"Accuracy: {accuracy:.4f}")
             print(f"F1 Macro: {f1:.4f}")

@@ -1,0 +1,29 @@
+# Core
+numpy==1.26.4
+pandas==2.1.3
+
+# Machine Learning
+scikit-learn==1.5.2
+xgboost==2.1.4
+optuna==4.1.0
+
+# Tracking
+mlflow==2.17.2
+
+# Data handling
+pyarrow==15.0.2
+joblib==1.4.2
+
+# API (para a próxima fase)
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+
+# Visualização e análise
+matplotlib==3.9.2
+seaborn==0.13.2
+
+# Encoding alternativo (caso testes TargetEncoder)
+category-encoders==2.6.4
+
+# Utilidades
+python-dotenv==1.0.1

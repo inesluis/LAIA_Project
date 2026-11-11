@@ -35,6 +35,7 @@ build/
 dist/
 .venv/
 venv/
+.venv*
 
 # ── Testes, lint e cobertura ──
 .pytest_cache/
