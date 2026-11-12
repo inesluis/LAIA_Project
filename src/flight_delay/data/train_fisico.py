@@ -13,7 +13,7 @@ from sklearn.metrics import (
     confusion_matrix,
 )
 
-from preprocessing import (
+from flight_delay.data.preprocessing_v1 import (
     load_dataset,
     prepare_data,
     build_preprocessor,
