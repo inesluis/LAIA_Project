@@ -7,7 +7,7 @@ from sklearn.metrics import f1_score
 from xgboost import XGBClassifier
 
 # Importar as funções modularizadas criadas no preprocessing.py
-from preprocessing import load_dataset, clean_flight_data, build_preprocessor, TARGET_COLUMN
+from flight_delay.training.preprocessing_v1 import load_dataset, clean_flight_data, build_preprocessor, TARGET_COLUMN
 
 # ==============================================================================
 # 1. CARREGAMENTO E PREPARAÇÃO DOS DADOS

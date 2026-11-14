@@ -1,0 +1,21 @@
+FROM python:3.11-slim
+
+
+# 1. impede o Python de criar ficheiros .pyc e pastas __pycache__
+# 2. faz com que o print() e os logs saiam logo, sem ficarem guardados num buffer
+ENV PYTHONDONTWRITEBYTECODE=1 \  
+    PYTHONUNBUFFERED=1 \
+    DATA_PATH=/app/data/dataset_completo.v1.parquet
+
+WORKDIR /app
+
+COPY requirements.lock.txt .
+RUN pip install --no-cache-dir -r requirements.lock.txt
+
+COPY src/flight_delay/training ./training
+WORKDIR /app/training
+
+RUN useradd --create-home appuser
+USER appuser
+
+CMD ["python", "train_v1.py"]

@@ -1,0 +1,13 @@
+
+services:
+  train:
+    container_name: train_container_v1
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.train
+    volumes:
+      - type: bind
+        source: ../data/dataset_completo.v1.parquet
+        target: /app/data/dataset_completo.v1.parquet
+        read_only: true
+    env_file: ../.env

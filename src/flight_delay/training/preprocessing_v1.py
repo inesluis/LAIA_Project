@@ -41,12 +41,19 @@ CATEGORICAL_FEATURES: List[str] = [
 TARGET_COLUMN: str = 'TARGET'
 
 
-def load_dataset(csv_path: Path | str) -> pd.DataFrame:
-    """Carrega o ficheiro CSV a partir do caminho indicado."""
-    path = Path(csv_path)
+def load_dataset(path: Path | str, columns: list[str] | None = None) -> pd.DataFrame:
+    """Carrega o dataset a partir de um ficheiro CSV ou Parquet."""
+    path = Path(path)
     if not path.is_file():
         raise FileNotFoundError(f"Ficheiro não encontrado: {path.resolve()}")
-    return pd.read_csv(path)
+
+    suffix = path.suffix.lower()
+    if suffix == ".parquet":
+        return pd.read_parquet(path, columns=columns)
+    if suffix == ".csv":
+        return pd.read_csv(path, usecols=columns)
+
+    raise ValueError(f"Formato não suportado: {suffix} (usa .csv ou .parquet)")
 
 
 def upper_columns_names(df: pd.DataFrame) -> pd.DataFrame:
