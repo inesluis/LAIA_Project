@@ -1,5 +1,7 @@
+import inspect
 import json
 import os
+import re
 from pathlib import Path
 
 import mlflow
@@ -16,13 +18,32 @@ from sklearn.metrics import (
 from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
 
-from preprocessing_v1 import (
+from preprocessing.preprocessing_v1 import (
     build_preprocessor,
     load_dataset,
     prepare_data,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
+
+
+def version_from_filename(path: str | Path) -> str:
+    """Extrai a versão do nome do ficheiro (ex.: 'train_v1.py' -> 'v1')."""
+    match = re.search(r"_(v\d+)$", Path(path).stem)
+    if match is None:
+        raise ValueError(
+            f"O ficheiro '{Path(path).name}' não segue o padrão '<nome>_v<N>.py'"
+        )
+    return match.group(1)
+
+
+# Versões lidas dos próprios ficheiros, para não haver strings a dessincronizar.
+# A do preprocessing vem do módulo de onde build_preprocessor foi importado.
+TRAIN_VERSION = version_from_filename(__file__)
+PREPROCESSING_VERSION = version_from_filename(inspect.getfile(build_preprocessor))
+
+# Definir o nome do ficheiro de best_params
+best_params_file = "best_params_v1.json"
 
 # ---------------------------------------------------------------------
 # MLFLOW
@@ -121,7 +142,7 @@ def setup_mlflow() -> None:
 
 def load_params() -> dict:
     # Relativo ao script, e não à pasta de onde o script é corrido
-    with open(BASE_DIR / "best_params_v1.json", "r") as f:
+    with open(BASE_DIR / best_params_file, "r") as f:
         return json.load(f)
 
 
@@ -135,7 +156,8 @@ def resolve_data_path() -> Path:
     env_path = os.environ.get("DATA_PATH")
     if env_path:
         return Path(env_path)
-    return BASE_DIR.parents[3] / "data" / "dataset_completo.v1.parquet"
+    # BASE_DIR = <raiz>/src/flight_delay/training -> parents[2] = <raiz>
+    return BASE_DIR.parents[2] / "data" / "dataset_completo.v1.parquet"
 
 
 def split_data(df):
@@ -159,6 +181,12 @@ def split_data(df):
 # ---------------------------------------------------------------------
 # TRAINING
 # ---------------------------------------------------------------------
+
+
+def class_percentages(y) -> dict:
+    """Percentagem de cada classe (0-100), ordenada pela classe."""
+    percentages = y.value_counts(normalize=True).sort_index() * 100
+    return {str(cls): round(float(pct), 2) for cls, pct in percentages.items()}
 
 
 def train(df, best_params: dict, dataset_name: str):
@@ -207,15 +235,18 @@ def train(df, best_params: dict, dataset_name: str):
             # logging
             mlflow.log_param("model_type", "XGBClassifier")
             mlflow.log_param("dataset_version", dataset_name)
+            mlflow.log_param("train_version", TRAIN_VERSION)
+            mlflow.log_param("preprocessing_version", PREPROCESSING_VERSION)
+
             mlflow.log_param("train_rows", len(X_train))
             mlflow.log_param("test_rows", len(X_test))
             mlflow.log_params(best_params)
 
             mlflow.log_dict(
-                y_train.value_counts().to_dict(), "class_distribution.json"
+                class_percentages(y_train), "class_distribution.json"
             )
             mlflow.log_dict(
-                y_test.value_counts().to_dict(), "class_distribution_test.json"
+                class_percentages(y_test), "class_distribution_test.json"
             )
 
             mlflow.log_metric("accuracy", accuracy)
@@ -268,7 +299,7 @@ if __name__ == "__main__":
     best_params = load_params()
 
     # carregar dataset
-    df = load_dataset(csv_path=data_path)
+    df = load_dataset(path=data_path)
 
     # treinar modelo
     result = train(df, best_params, dataset_name=data_path.name)

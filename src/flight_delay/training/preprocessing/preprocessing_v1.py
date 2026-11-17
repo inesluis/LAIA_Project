@@ -96,7 +96,7 @@ def clean_flight_data(df: pd.DataFrame) -> pd.DataFrame:
     cleaned_df = df[df["CRSELAPSEDTIME"] > 0].copy()
     cleaned_df = cleaned_df[cleaned_df['CANCELLED']!=1]
     cleaned_df = cleaned_df[cleaned_df['DIVERTED']!=1]
-    cleaned_df.drop(columns=['CANCELLED','DIVERTED'],inplace=True)
+    cleaned_df.drop(columns=['CANCELLED','DIVERTED'],inplace=True,errors='ignore')
     cleaned_df.reset_index(drop=True, inplace=True)
     return cleaned_df
 
@@ -144,7 +144,10 @@ def prepare_data(df: pd.DataFrame,treino:bool=True) -> pd.DataFrame:
     """
     if treino:
         df_prepared = add_target(df)
-    df_prepared = upper_columns_names(df_prepared)
+        df_prepared = upper_columns_names(df_prepared)
+    else:
+        df_prepared = upper_columns_names(df)
+    
     df_prepared = clean_flight_data(df_prepared)
     df_prepared = type_transformation(df_prepared)
     df_prepared = data_engineering(df_prepared)

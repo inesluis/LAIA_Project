@@ -1,0 +1,18 @@
+Criação docs: 17/11
+Ultima atualização: 17/11
+
+## V1
+
+NUMERIC_FEATURES: List[str] = [ 'QUARTER', 'MONTH', 'DAYOFMONTH', 'DAYOFWEEK', 'CRSELAPSEDTIME', 'DISTANCE', 'DISTANCEGROUP', 'CRSDEPHOUR', 'CRSDEPMINUTE', 'CRSARRHOUR', 'CRSARRMINUTE', 'MILESPERMINUTE' ]
+CATEGORICAL_FEATURES: List[str] = [ 'ORIGINAIRPORTID', 'DESTAIRPORTID', 'REPORTING_AIRLINE', 'ORIGINCITYMARKETID', 'DESTCITYMARKETID', 'ORIGINSTATEFIPS', 'DESTSTATEFIPS' ]
+
+- Cria-se neste documento a variavel Target apenas para o treino do modelo. Quando for apenas para fazer serving do modelo essa parte não deve ser acionada
+- Temos uma função inicial para carregar o dataset que está pronto para carregar tanto em formato .csv como .parquet
+- Temos uma função para passar o nome das colunas para tudo em MAIUSCULAS (devido ao facto de em diferentes descarregamentos do datset o nome da colunas vir em formatos diferentes(Nome vs NOME) e assim uniformiza-se até para quando recebermos dados novos)
+- Temos uma função de limpeza do dataset onde se eliminam amostras onde o tempo previsto de voo seja negativo, onde eliminamos os voos cancelados ou desviados e eliminamos as colunas CANCELLED e DIVERTED.
+# duvida: faz sentido fazer para dados novos?
+- Temos uma função de transformação do tipo das colunas. DISTANCE e CRSELAPSEDTIME são transformadas para inteiros. REPORTING_AIRLINE, ORIGINAIRPORTID, ORIGINCITYMARKETID, ORIGINSTATEFIPS, DESTAIRPORTID, DESTCITYMARKETID, DESTSTATEFIPS foram transformadas em tipo category de forma a poupar espaço e serem consideradas como colunas categóricos para modelos como o usado, xgboost.
+- Temos uma coluna de criação de novas colunas. Primeiramente transformamos as horas (hhmm) de precisão de saída e chegada para colunas individuais das horas (hh) e dos minutos (mm). Adicionalmente fizemos o cálculo de miles per minute previsto para cada voo.
+- Temos uma função prepare_data onde aplicamos todas as funções anteriores. A função add_target apenas é chamado quando a variavel de entrada Treino é True.
+- Por fim, temos a função build_processor que constroi o ColumnTransformer. Às colunas numéricas, definidas no inicio, aplica o StandartScaler. Já às colunas categóricas aplica um OrdinalEncoder que dá valor de -1 a valores nunca antes vistos depois do treino.
+

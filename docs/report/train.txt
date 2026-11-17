@@ -1,0 +1,11 @@
+Criação docs: 17/11
+Ultima atualização: 17/11
+
+## V1
+
+- Temos uma função que vai buscar ao nomes dos ficheiros de pré-processamento e de treino a versão corrente para dar log no mlflow
+- Temos funções, depois, para configurar o mlflow, verificar se já existe experiência carregando se sim ou criando se não.
+- Temos uma função para carregar os melhores parâmetros obtidos do fine tuning. Não esquecer de alterar o nome do ficheiro quando tiver obtido novos resultados.
+- De seguida, temos uma função para carregar os dados (.parquet) e outra para fazer o split dos dados garantido os 6 meses para teste tal como feito no fine tuning.
+- Finalmente, temos a função train. Nela começamos por usar o prepare_data do preprocessing e fazemos o split dos dados. Instanciamos o xgboost com random_state de 42, treinar em cpu pelo facto de a vm não ter GPU ,num_class 3 e com os best_params obtidos do pré-processamento. Um pipeline com preprocessor criado a partir de um build_processor do ficheiro de preprocessamento e com o modelo xgboost descrito anteriormente é criado. Começa-se então a run do mlflow com o nome xgb_v1. Dentro de um ciclo try, except dá-se fit dos X_train e y_train usando o pipeline e prevê-se os dados de teste. São calculados métricas, como o f1-score macro , a accuracy, o recall e precision para cada classe. Passamos agora a dar log a coisas importantes envolvendo todo este processo, entre elas: model_type, dataset_version, train_version, preprocessing_version, número de linhas no treino e teste, distribuição do target no treino e teste, e as métricas, o classification report e a matriz de confusão. Logamos, por fim, o modelo no mlflow com o pipeline com a assinatura de 100 linha randoms dos dados de treino. 
+# Duvida: problema fazer fine tuning em GPU e depois treinar em CPU?
