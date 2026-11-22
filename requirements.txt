@@ -13,6 +13,7 @@ pyarrow==15.0.2
 joblib==1.4.2
 numpy==1.26.4
 pandas==2.3.3
+airportsdata==20260905  # fusos horários dos aeroportos (IATA -> tz), usado nas features de histórico
 scikit-learn==1.9.1
 # xgboost-cpu: o mesmo xgboost (faz-se "import xgboost" na mesma), sem as bibliotecas
 # de GPU da NVIDIA. A imagem fica muito mais pequena e as VMs não têm GPU.
