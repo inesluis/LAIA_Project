@@ -5,9 +5,12 @@
 #   2. build da imagem Docker da API + smoke test do container
 #   3. só em push (depois do merge): envia a imagem para o GHCR,
 #      com a etiqueta = SHA do commit
+#   4. só em push: deploy dessa imagem na VM2 (02_continuous_deployment.yml)
+#      dev -> staging (porta 8001) · main -> production (porta 8000)
 #
-# Corre nos computadores do GitHub (ubuntu-latest), nunca nas VMs:
-# executa código de PRs que ainda não foi revisto.
+# Os passos 1-3 correm nos computadores do GitHub (ubuntu-latest), nunca nas VMs:
+# executam código de PRs que ainda não foi revisto. Só o passo 4 corre na VM2,
+# e só com código que já passou por PR e foi integrado.
 
 name: CI
 
@@ -16,16 +19,17 @@ on:
     branches: [dev, main]
   push:
     branches: [dev, main]
-  workflow_dispatch:   # botão "Run workflow" no separador Actions
+  workflow_dispatch: # botão "Run workflow" no separador Actions
 
 # Por defeito, o workflow só pode ler o repositório.
 permissions:
   contents: read
 
-# Um push novo no mesmo branch/PR cancela a execução anterior, que já está desatualizada.
+# Num PR, um push novo cancela a execução anterior, que já está desatualizada.
+# Em push para dev/main não se cancela: a execução pode estar a meio de um deploy.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   PYTHON_VERSION: "3.11"
@@ -44,7 +48,7 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip   # guarda os pacotes entre execuções (CI mais rápido)
+          cache: pip # guarda os pacotes entre execuções (CI mais rápido)
           cache-dependency-path: requirements.txt
 
       - name: Instalar dependências
@@ -60,12 +64,12 @@ jobs:
 
   build:
     name: Build e smoke test da imagem
-    needs: test   # só corre se o lint e os testes passarem
+    needs: test # só corre se o lint e os testes passarem
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
-      packages: write   # necessário para enviar a imagem para o GHCR
+      packages: write # necessário para enviar a imagem para o GHCR
 
     steps:
       - name: Checkout do código
@@ -85,37 +89,36 @@ jobs:
           context: .
           file: docker/Dockerfile.api
           tags: ${{ env.IMAGE }}:${{ github.sha }}
-          load: true    # fica disponível no Docker local, para o smoke test
-          push: false   # o envio só acontece depois, se o smoke test passar
+          load: true # fica disponível no Docker local, para o smoke test
+          push: false # o envio só acontece depois, se o smoke test passar
           # Reaproveita camadas de builds anteriores (ex.: o pip install).
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # O mesmo teste é feito depois no deploy da VM2 (02_continuous_deployment.yml).
+      # Se mudar aqui, mudar também lá.
       - name: Smoke test do container
         run: |
           docker run -d --name api-ci -p 8000:8000 "$IMAGE:${{ github.sha }}"
 
-          echo "À espera que a API arranque..."
-          for i in $(seq 1 30); do
-            curl -fsS http://localhost:8000/health && break
-            sleep 2
-          done
-          curl -fsS http://localhost:8000/health > /dev/null || { echo "A API não arrancou"; exit 1; }
-
+          # Esperar que a API arranque (até 30 tentativas, de 2 em 2 segundos)
+          curl -fsS --retry 30 --retry-delay 2 --retry-all-errors http://localhost:8000/health
           echo
-          echo "Pedido de exemplo ao /classify (formato do enunciado):"
+
+          # Pedido de exemplo ao /classify, no formato do enunciado
           curl -fsS -X POST http://localhost:8000/classify \
             -H "Content-Type: application/json" \
+            -o response.json \
             -d '{"instances": [
                   {"FL_DATE": "2025-05-15", "OP_UNIQUE_CARRIER": "AA", "ORIGIN": "JFK", "DEST": "LAX",
                    "CRS_DEP_TIME": 830, "CRS_ARR_TIME": 1145, "CRS_ELAPSED_TIME": 375, "DISTANCE": 2475},
                   {"FL_DATE": "2025-05-16", "OP_UNIQUE_CARRIER": "DL", "ORIGIN": "ATL", "DEST": "ORD",
                    "CRS_DEP_TIME": 1400, "CRS_ARR_TIME": 1530, "CRS_ELAPSED_TIME": 150, "DISTANCE": 606}
-                ]}' \
-            -o response.json
+                ]}'
           cat response.json
+          echo
 
-          # Confirma o formato da resposta: 2 voos -> 2 rótulos válidos.
+          # Confirmar a resposta: 2 voos -> 2 rótulos válidos
           python3 -c '
           import json
           labels = json.load(open("response.json"))["classifications"]
@@ -138,10 +141,23 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}   # criado automaticamente pelo GitHub
+          password: ${{ secrets.GITHUB_TOKEN }} # criado automaticamente pelo GitHub
 
       - name: Enviar a imagem para o GHCR
         if: github.event_name == 'push'
         run: |
           docker push "$IMAGE:${{ github.sha }}"
           echo "Imagem enviada: $IMAGE:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── CD: deploy na VM2 (só em push para dev/main, depois do build) ──
+  # main -> production · dev -> staging. Os passos estão no 02_continuous_deployment.yml.
+  deploy:
+    name: Deploy
+    needs: build
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/02_continuous_deployment.yml
+    with:
+      environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
