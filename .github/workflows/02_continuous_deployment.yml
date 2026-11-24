@@ -1,0 +1,132 @@
+# CD — Deploy da API na VM2
+#
+# Chamado pelo 01_continuous_integration.yml depois de um push para dev ou main.
+# Põe a correr a imagem que o CI já testou e enviou para o GHCR (etiqueta = SHA do commit).
+#
+#   staging    -> container api-staging, porta 8001  (branch dev)
+#   production -> container api-prod,    porta 8000  (branch main)
+#
+# Se o smoke test falhar, volta à versão anterior (rollback).
+
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:        # staging ou production
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write   # descarregar a imagem e enviar a etiqueta :staging / :production
+
+jobs:
+  deploy:
+    name: Deploy (${{ inputs.environment }})
+    runs-on: [self-hosted, model-serving]   # runner da VM2
+    environment: ${{ inputs.environment }}  # variáveis próprias de cada ambiente (ex.: MODEL_URI)
+
+    # Um deploy de cada vez por ambiente; o seguinte espera na fila.
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+
+    env:
+      ENVIRONMENT: ${{ inputs.environment }}
+      MODEL_URI: ${{ vars.MODEL_URI }}                       # vazio -> a API usa o modelo dummy
+      MLFLOW_TRACKING_URI: ${{ vars.MLFLOW_TRACKING_URI }}
+
+    # Não é preciso checkout do código: tudo o que é preciso está na imagem.
+    steps:
+      - name: Definir container, porta e imagem
+        run: |
+          if [ "$ENVIRONMENT" = "production" ]; then
+            echo "CONTAINER=api-prod" >> "$GITHUB_ENV"
+            echo "PORT=8000" >> "$GITHUB_ENV"
+          else
+            echo "CONTAINER=api-staging" >> "$GITHUB_ENV"
+            echo "PORT=8001" >> "$GITHUB_ENV"
+          fi
+          # Nomes de imagens Docker só em minúsculas (o repositório é LAIA_Project).
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}/api" >> "$GITHUB_ENV"
+
+      - name: Login no GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Guarda a imagem que está a correr agora, para o rollback.
+      - name: Guardar a versão atual
+        run: |
+          PREVIOUS=$(docker inspect --format '{{.Config.Image}}' "$CONTAINER" 2>/dev/null || true)
+          # O modelo com que o container atual arrancou (vazio = modelo dummy)
+          PREVIOUS_MODEL_URI=$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$CONTAINER" 2>/dev/null \
+            | sed -n 's/^MODEL_URI=//p' || true)
+          echo "Versão atual: ${PREVIOUS:-nenhuma} (modelo: ${PREVIOUS_MODEL_URI:-dummy})"
+          echo "PREVIOUS=$PREVIOUS" >> "$GITHUB_ENV"
+          echo "PREVIOUS_MODEL_URI=$PREVIOUS_MODEL_URI" >> "$GITHUB_ENV"
+
+      - name: Arrancar a versão nova
+        run: |
+          docker pull "$IMAGE:$GITHUB_SHA"
+          docker rm -f "$CONTAINER" || true
+          docker run -d --name "$CONTAINER" --restart unless-stopped -p "$PORT:8000" \
+            -e MODEL_URI -e MLFLOW_TRACKING_URI \
+            "$IMAGE:$GITHUB_SHA"
+
+      # O mesmo teste do CI (01_continuous_integration.yml). Se mudar aqui, mudar também lá.
+      - name: Smoke test
+        run: |
+          # Esperar que a API arranque (até 30 tentativas, de 2 em 2 segundos)
+          curl -fsS --retry 30 --retry-delay 2 --retry-all-errors "http://localhost:$PORT/health"
+          echo
+
+          # Pedido de exemplo ao /classify, no formato do enunciado
+          curl -fsS -X POST "http://localhost:$PORT/classify" \
+            -H "Content-Type: application/json" \
+            -o response.json \
+            -d '{"instances": [
+                  {"FL_DATE": "2025-05-15", "OP_UNIQUE_CARRIER": "AA", "ORIGIN": "JFK", "DEST": "LAX",
+                   "CRS_DEP_TIME": 830, "CRS_ARR_TIME": 1145, "CRS_ELAPSED_TIME": 375, "DISTANCE": 2475},
+                  {"FL_DATE": "2025-05-16", "OP_UNIQUE_CARRIER": "DL", "ORIGIN": "ATL", "DEST": "ORD",
+                   "CRS_DEP_TIME": 1400, "CRS_ARR_TIME": 1530, "CRS_ELAPSED_TIME": 150, "DISTANCE": 606}
+                ]}'
+          cat response.json
+          echo
+
+          # Confirmar a resposta: 2 voos -> 2 rótulos válidos
+          python3 -c '
+          import json
+          labels = json.load(open("response.json"))["classifications"]
+          assert len(labels) == 2, labels
+          assert set(labels) <= {"on_time", "moderate_delay", "severe_delay"}, labels
+          print("Smoke test OK:", labels)
+          '
+
+      # Só corre se um passo anterior falhou.
+      - name: Rollback para a versão anterior
+        if: failure() && env.PREVIOUS != ''
+        run: |
+          docker logs --tail 50 "$CONTAINER" || true
+          docker rm -f "$CONTAINER" || true
+          docker run -d --name "$CONTAINER" --restart unless-stopped -p "$PORT:8000" \
+            -e MODEL_URI="$PREVIOUS_MODEL_URI" -e MLFLOW_TRACKING_URI \
+            "$PREVIOUS"
+          # Confirmar que a versão anterior voltou a responder
+          curl -fsS --retry 30 --retry-delay 2 --retry-all-errors "http://localhost:$PORT/health"
+          echo
+          echo "Rollback feito para $PREVIOUS (modelo: ${PREVIOUS_MODEL_URI:-dummy})" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # Etiqueta que mostra no GHCR que versão está em cada ambiente.
+      - name: Etiquetar a imagem como :${{ inputs.environment }}
+        run: |
+          docker tag "$IMAGE:$GITHUB_SHA" "$IMAGE:$ENVIRONMENT"
+          docker push "$IMAGE:$ENVIRONMENT"
+
+      # Apaga imagens que nenhum container usa (a VM2 tem pouco disco).
+      # As versões antigas continuam no GHCR.
+      - name: Limpar imagens antigas
+        run: docker image prune -af

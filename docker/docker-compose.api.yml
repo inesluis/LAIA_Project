@@ -1,0 +1,30 @@
+# API de inferência (/health, /classify), para correr à mão (no PC ou na VM2).
+# O deploy automático na VM2 não usa este ficheiro: é feito pelo deploy.yml.
+#
+# Correr a partir da raiz do repositório:
+#   docker compose -f docker/docker-compose.api.yml up -d --build
+# Parar:
+#   docker compose -f docker/docker-compose.api.yml down
+#
+# Sem variáveis -> modelo dummy. Para usar um modelo do MLflow:
+#   MODEL_URI=models:/<nome>@<alias> MLFLOW_TRACKING_URI=http://10.6.0.80:5000 \
+#     docker compose -f docker/docker-compose.api.yml up -d --build
+# Para mudar a porta no computador (ex.: na VM2 a 8000 e a 8001 já estão ocupadas):
+#   API_PORT=8080 docker compose -f docker/docker-compose.api.yml up -d --build
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+
+    container_name: flight-delay-api
+
+    ports:
+      - "${API_PORT:-8000}:8000"
+
+    environment:
+      MODEL_URI: "${MODEL_URI:-}"                      # vazio -> modelo dummy
+      MLFLOW_TRACKING_URI: "${MLFLOW_TRACKING_URI:-}"
+
+    restart: unless-stopped
