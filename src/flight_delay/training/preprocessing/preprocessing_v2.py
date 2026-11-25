@@ -212,7 +212,7 @@ def _flight_times_utc(df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
         utc = local.dt.tz_localize(tz, ambiguous=np.zeros(len(local), dtype=bool), nonexistent='shift_forward')
         sched_dep[idx.to_numpy()] = ((utc - epoch) / pd.Timedelta(minutes=1)).to_numpy()
 
-    real_arr = sched_dep + df['CRSELAPSEDTIME'].to_numpy(dtype='float64') + df[DELAY_COLUMN].to_numpy(dtype='float64')
+    real_arr = sched_dep + df['CRSELAPSEDTIME'].to_numpy(dtype='float32') + df[DELAY_COLUMN].to_numpy(dtype='float32')
     # Salvaguarda (o clean_flight_data já remove estes casos): um voo nunca pode "aterrar" antes
     # da própria partida prevista, senão entraria na sua própria janela (fuga do próprio target).
     # np.maximum propaga NaN: voos sem ARRDELAY ou sem fuso ficam fora do histórico
@@ -263,7 +263,7 @@ def _rolling_landed(
         result[name] = {}
         for w in windows:
             lo = group_start if w is None else np.maximum(n_landed - w, group_start)
-            result[name][w] = (cum[n_landed] - cum[lo], (n_landed - lo).astype('float64'))
+            result[name][w] = (cum[n_landed] - cum[lo], (n_landed - lo).astype('float32'))
     return result
 
 
@@ -286,13 +286,13 @@ def add_history_features(df: pd.DataFrame) -> pd.DataFrame:
 
     sched_dep, real_arr = _flight_times_utc(df)
     values = {
-        'severe': (df[TARGET_COLUMN] == 2).to_numpy(dtype='float64'),
-        'delay': df[DELAY_COLUMN].to_numpy(dtype='float64'),
+        'severe': (df[TARGET_COLUMN] == 2).to_numpy(dtype='float32'),
+        'delay': df[DELAY_COLUMN].to_numpy(dtype='float32'),
     }
 
     new_cols = {}
     for prefix, group_cols, windows in HISTORY_GROUPS:
-        group_id = df.groupby(group_cols, observed=True, sort=False).ngroup().to_numpy().astype('float64')
+        group_id = df.groupby(group_cols, observed=True, sort=False).ngroup().to_numpy().astype('float32')
         rolled = _rolling_landed(values, group_id, sched_dep, real_arr, windows)
 
         means = {}
@@ -334,21 +334,21 @@ def _context_features(
     cols: dict[str, np.ndarray] = {}
 
     # 1) Atraso médio por hora de partida prevista (expanding)
-    dep_hour = (df['CRSDEPTIME'].astype('int64') // 100).to_numpy().astype('float64')
+    dep_hour = (df['CRSDEPTIME'].astype('int64') // 100).to_numpy().astype('float32')
     rolled = _rolling_landed({'delay': delay}, dep_hour, sched_dep, real_arr, [None])
     d_sum, cnt = rolled['delay'][None]
     cols['DEPHOUR_MEANDELAY_ALL'] = _safe_ratio(d_sum, cnt)
 
     # 2) % de voos atrasados por (aeroporto de origem, dia)
-    delayed = (df[TARGET_COLUMN] >= 1).to_numpy(dtype='float64')
+    delayed = (df[TARGET_COLUMN] >= 1).to_numpy(dtype='float32')
     day = (_flight_dates(df) - pd.Timestamp('2000-01-01')).dt.days.to_numpy()
     origin = df['ORIGINAIRPORTID'].astype('int64').to_numpy()
     # Chave (aeroporto, dia) -> id compacto partilhado pelas aterragens e pelas consultas
     own_key = origin * 100_000 + day
     prev_key = own_key - 1                       # mesmo aeroporto, dia anterior
     _, ids = np.unique(np.concatenate([own_key, prev_key]), return_inverse=True)
-    own_id = ids[:len(df)].astype('float64')
-    prev_id = ids[len(df):].astype('float64')
+    own_id = ids[:len(df)].astype('float32')
+    prev_id = ids[len(df):].astype('float32')
 
     for suffix, query_id in [('TODAY', own_id), ('YESTERDAY', prev_id)]:
         rolled = _rolling_landed({'delayed': delayed}, own_id, sched_dep, real_arr, [None],
@@ -365,8 +365,8 @@ def add_cyclic_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     df = df.copy()
     cycles = {
-        'MONTH': (df['MONTH'].astype('float64') - 1, 12),                # 1..12 -> 0..11
-        'DAYOFWEEK': (df['DAYOFWEEK'].astype('float64') - 1, 7),         # 1..7  -> 0..6
+        'MONTH': (df['MONTH'].astype('float32') - 1, 12),                # 1..12 -> 0..11
+        'DAYOFWEEK': (df['DAYOFWEEK'].astype('float32') - 1, 7),         # 1..7  -> 0..6
         'CRSDEPTIME': (df['CRSDEPHOUR'] + df['CRSDEPMINUTE'] / 60, 24),  # hora do dia, com minutos
     }
     for name, (value, period) in cycles.items():

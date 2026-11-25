@@ -8,9 +8,10 @@ Correr a partir de qualquer pasta com:  python src/flight_delay/training/finetun
 Variáveis de ambiente opcionais:
   DATA_PATH   caminho do dataset (por omissão <raiz>/data/dataset_completo.v2.parquet)
   XGB_DEVICE  'cuda' (omissão) ou 'cpu'
-  N_TRIALS    nº de trials a correr nesta execução (omissão 50)
+  N_TRIALS    nº de trials a correr nesta execução (omissão 10)
 """
 
+import gc
 import json
 import os
 import re
@@ -25,6 +26,8 @@ from sklearn.model_selection import TimeSeriesSplit
 from xgboost import XGBClassifier
 
 from preprocessing.preprocessing_v2 import (
+    CATEGORICAL_FEATURES,
+    NUMERIC_FEATURES,
     TARGET_COLUMN,
     build_preprocessor,
     load_dataset,
@@ -87,10 +90,13 @@ def load_dev_data(path: Path) -> tuple[pd.DataFrame, pd.Series]:
     # cada valor só usa voos que já tinham aterrado, por isso não há fuga entre folds.
     df = prepare_data(load_dataset(path), treino=True)
     df_dev = select_dev(df)
+    del df   # o dataset completo (com o período de teste) já não é preciso
     print(f"Pré-processamento concluído em {time.time() - t0:.0f}s")
 
     y_dev = df_dev[TARGET_COLUMN]
-    X_dev = df_dev.drop(columns=[TARGET_COLUMN])
+    # Só as colunas que o modelo usa: o ColumnTransformer descartava as outras de qualquer forma
+    # (ex.: ORIGIN, com ~10M strings, ocupa muita memória sem nunca chegar ao modelo)
+    X_dev = df_dev[NUMERIC_FEATURES + CATEGORICAL_FEATURES]
     return X_dev, y_dev
 
 
@@ -129,8 +135,10 @@ def make_objective(X_dev: pd.DataFrame, y_dev: pd.Series, n_splits: int = N_SPLI
 
             # Pré-processador ajustado só no treino do fold atual (evita data leakage)
             preprocessor = build_preprocessor()
-            X_tr_proc = preprocessor.fit_transform(X_tr)
-            X_va_proc = preprocessor.transform(X_va)
+            # float32: o XGBoost converte para float32 internamente de qualquer forma, por isso os
+            # resultados são os mesmos e evita-se ter uma cópia float64 em memória (~metade da RAM)
+            X_tr_proc = preprocessor.fit_transform(X_tr).astype(np.float32)
+            X_va_proc = preprocessor.transform(X_va).astype(np.float32)
 
             model = XGBClassifier(**params)
             model.fit(X_tr_proc, y_tr)
@@ -138,6 +146,10 @@ def make_objective(X_dev: pd.DataFrame, y_dev: pd.Series, n_splits: int = N_SPLI
             score = f1_score(y_va, model.predict(X_va_proc), average="macro")
             fold_scores.append(score)
             print(f"  └─ Fold {fold + 1}/{n_splits} concluído em {time.time() - t_fold_start:.1f}s | F1-macro: {score:.4f}")
+
+            # Libertar as cópias deste fold antes do seguinte (RAM e memória da GPU)
+            del X_tr, X_va, X_tr_proc, X_va_proc, model, preprocessor
+            gc.collect()
 
         return float(np.mean(fold_scores))
 

@@ -17,7 +17,7 @@ airportsdata==20260905  # fusos horários dos aeroportos (IATA -> tz), usado nas
 scikit-learn==1.9.1
 # xgboost-cpu: o mesmo xgboost (faz-se "import xgboost" na mesma), sem as bibliotecas
 # de GPU da NVIDIA. A imagem fica muito mais pequena e as VMs não têm GPU.
-xgboost-cpu==3.2.0
+#xgboost-cpu==3.2.0
 xgboost==2.1.4
 
 # Visualização e análise
