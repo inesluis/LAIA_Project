@@ -55,7 +55,7 @@ STORAGE = f"sqlite:///{(REPO_ROOT / 'bts_xgboost_optimization.db').as_posix()}"
 STUDY_NAME = f"xgboost_timeseries_f1_{VERSION}"
 
 N_SPLITS = 4
-N_TRIALS = int(os.environ.get("N_TRIALS", 10))
+N_TRIALS = int(os.environ.get("N_TRIALS", 20))
 # GPU por omissão para acelerar a pesquisa; os parâmetros encontrados servem igualmente para o
 # treino final em CPU (train_v2.py). Usar XGB_DEVICE=cpu numa máquina sem GPU.
 DEVICE = os.environ.get("XGB_DEVICE", "cuda")

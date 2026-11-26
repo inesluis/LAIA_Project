@@ -237,6 +237,7 @@ def train(df, best_params: dict, dataset_name: str):
             mlflow.log_param("dataset_version", dataset_name)
             mlflow.log_param("train_version", TRAIN_VERSION)
             mlflow.log_param("preprocessing_version", PREPROCESSING_VERSION)
+            mlflow.log_param("best_params_file", best_params_file)
 
             mlflow.log_param("train_rows", len(X_train))
             mlflow.log_param("test_rows", len(X_test))
