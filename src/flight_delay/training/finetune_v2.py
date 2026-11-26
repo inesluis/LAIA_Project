@@ -109,9 +109,9 @@ def make_objective(X_dev: pd.DataFrame, y_dev: pd.Series, n_splits: int = N_SPLI
 
     def objective(trial: optuna.Trial) -> float:
         params = {
-            "n_estimators": trial.suggest_int("n_estimators", 100, 350, step=50),
-            "max_depth": trial.suggest_int("max_depth", 4, 10),
-            "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.2, log=True),
+            "n_estimators": trial.suggest_int("n_estimators", 100, 1000, step=50),
+            "max_depth": trial.suggest_int("max_depth", 4, 15),
+            "learning_rate": trial.suggest_float("learning_rate", 0.05, 0.35, log=True),
             "subsample": trial.suggest_float("subsample", 0.6, 1.0),
             "colsample_bytree": trial.suggest_float("colsample_bytree", 0.6, 1.0),
             "reg_alpha": trial.suggest_float("reg_alpha", 1e-3, 10.0, log=True),
