@@ -10,7 +10,8 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler, OrdinalEncoder
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import FunctionTransformer, StandardScaler, OrdinalEncoder
 from functools import lru_cache
 import airportsdata
 
@@ -277,12 +278,11 @@ def add_history_features(df: pd.DataFrame) -> pd.DataFrame:
     "Já aterrados" = chegada real anterior à partida prevista do voo atual.
     Se não houver ARRDELAY/TARGET (inferência), as colunas são criadas a NaN.
     """
-    df = df.copy()
+    # Sem df.copy(): o assign no fim devolve um df novo sem alterar o recebido
+    # (com 13,6 M de linhas, cada cópia do df inteiro custa vários GB)
     has_history = DELAY_COLUMN in df.columns and TARGET_COLUMN in df.columns
     if not has_history:
-        for name in HISTORY_FEATURES:
-            df[name] = np.nan
-        return df
+        return df.assign(**{name: np.float32(np.nan) for name in HISTORY_FEATURES})
 
     sched_dep, real_arr = _flight_times_utc(df)
     values = {
@@ -300,8 +300,9 @@ def add_history_features(df: pd.DataFrame) -> pd.DataFrame:
             sev_sum, cnt = rolled['severe'][w]
             d_sum, _ = rolled['delay'][w]
             has_data = cnt > 0                                  # NaN quando nenhum voo aterrou ainda
-            new_cols[f'{prefix}_SEVERE_LAST{w}'] = np.where(has_data, sev_sum, np.nan)
-            means[w] = np.where(has_data, d_sum / np.where(has_data, cnt, 1), np.nan)
+            # float32 logo na criação: metade da memória, e o XGBoost usa float32 de qualquer forma
+            new_cols[f'{prefix}_SEVERE_LAST{w}'] = np.where(has_data, sev_sum, np.nan).astype(np.float32)
+            means[w] = np.where(has_data, d_sum / np.where(has_data, cnt, 1), np.nan).astype(np.float32)
             new_cols[f'{prefix}_MEANDELAY_LAST{w}'] = means[w]
 
         for w in windows:
@@ -310,7 +311,8 @@ def add_history_features(df: pd.DataFrame) -> pd.DataFrame:
 
     new_cols.update(_context_features(df, sched_dep, real_arr, values['delay']))
 
-    return pd.concat([df, pd.DataFrame(new_cols, index=df.index)[HISTORY_FEATURES]], axis=1)
+    # assign em vez de pd.concat: não cria uma cópia extra do df inteiro no pico de memória
+    return df.assign(**{name: new_cols[name].astype(np.float32, copy=False) for name in HISTORY_FEATURES})
 
 
 def _safe_ratio(num: np.ndarray, den: np.ndarray) -> np.ndarray:
@@ -337,7 +339,7 @@ def _context_features(
     dep_hour = (df['CRSDEPTIME'].astype('int64') // 100).to_numpy().astype('float32')
     rolled = _rolling_landed({'delay': delay}, dep_hour, sched_dep, real_arr, [None])
     d_sum, cnt = rolled['delay'][None]
-    cols['DEPHOUR_MEANDELAY_ALL'] = _safe_ratio(d_sum, cnt)
+    cols['DEPHOUR_MEANDELAY_ALL'] = _safe_ratio(d_sum, cnt).astype(np.float32)
 
     # 2) % de voos atrasados por (aeroporto de origem, dia)
     delayed = (df[TARGET_COLUMN] >= 1).to_numpy(dtype='float32')
@@ -354,7 +356,7 @@ def _context_features(
         rolled = _rolling_landed({'delayed': delayed}, own_id, sched_dep, real_arr, [None],
                                  query_group_id=query_id)
         n_delayed, cnt = rolled['delayed'][None]
-        cols[f'ORIG_PCT_DELAYED_{suffix}'] = 100 * _safe_ratio(n_delayed, cnt)
+        cols[f'ORIG_PCT_DELAYED_{suffix}'] = (100 * _safe_ratio(n_delayed, cnt)).astype(np.float32)
     return cols
 
 
@@ -432,10 +434,24 @@ def build_preprocessor(
     num_cols = numeric_cols if numeric_cols is not None else NUMERIC_FEATURES
     cat_cols = categorical_cols if categorical_cols is not None else CATEGORICAL_FEATURES
 
+    # Tudo em float32 (metade da memória do float64; o XGBoost converte para float32 na mesma).
+    # As numéricas misturam int64 e float, o que faria o StandardScaler devolver float64;
+    # convertendo antes, o scaler mantém float32. Usa-se pd.DataFrame.astype (e não uma função
+    # deste módulo) para o pipeline guardado no MLflow não depender deste ficheiro na serving.
+    numeric_pipeline = make_pipeline(
+        FunctionTransformer(
+            pd.DataFrame.astype,
+            kw_args={'dtype': 'float32'},
+            feature_names_out='one-to-one',
+        ),
+        StandardScaler(),
+    )
+
     preprocessor = ColumnTransformer(
         transformers=[
-            ('num', StandardScaler(), num_cols),
-            ('cat', OrdinalEncoder(handle_unknown='use_encoded_value', unknown_value=-1), cat_cols)
+            ('num', numeric_pipeline, num_cols),
+            ('cat', OrdinalEncoder(handle_unknown='use_encoded_value', unknown_value=-1,
+                                   dtype=np.float32), cat_cols)
         ],
         remainder='drop'
     )

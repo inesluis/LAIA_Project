@@ -6,6 +6,7 @@ from pathlib import Path
 
 import mlflow
 import mlflow.sklearn
+from dotenv import load_dotenv
 from mlflow.models import infer_signature
 from sklearn.metrics import (
     accuracy_score,
@@ -25,6 +26,10 @@ from preprocessing.preprocessing_v2 import (
 )
 
 BASE_DIR = Path(__file__).resolve().parent
+
+# Localmente lê <raiz>/.env. No Docker o .env não entra na imagem (.dockerignore) e as
+# variáveis vêm do env_file do compose; o load_dotenv não sobrepõe variáveis já definidas.
+load_dotenv(BASE_DIR.parents[2] / ".env")
 
 
 def version_from_filename(path: str | Path) -> str:
@@ -193,8 +198,12 @@ def train(df, best_params: dict, dataset_name: str):
 
     # preparação de dados
     df_prepared = prepare_data(df=df, treino=True)
+    # Libertar o dataset original: só funciona porque o __main__ não guarda outra referência
+    del df
 
     X_train, X_test, y_train, y_test = split_data(df_prepared)
+    # O split já criou cópias (X_train/X_test); o df preparado completo deixa de ser preciso
+    del df_prepared
 
     # modelo
     model = XGBClassifier(
@@ -299,11 +308,11 @@ if __name__ == "__main__":
     data_path = resolve_data_path()
     best_params = load_params()
 
-    # carregar dataset
-    df = load_dataset(path=data_path)
-
-    # treinar modelo
-    result = train(df, best_params, dataset_name=data_path.name)
+    # Carregar e treinar sem guardar o dataset numa variável aqui: assim o "del df"
+    # dentro do train() liberta mesmo a memória (~2-3 GB) durante o treino
+    result = train(
+        load_dataset(path=data_path), best_params, dataset_name=data_path.name
+    )
 
     print(result["accuracy"])
     print(result["f1"])
