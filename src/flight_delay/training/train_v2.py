@@ -57,7 +57,7 @@ ARTIFACT_URI = "mlflow-artifacts:/"
 # file:///mlflow). Dentro do container não existem nem têm permissão de escrita.
 LOCAL_ARTIFACT_PREFIXES = ("/", "file:")
 
-DEFAULT_EXPERIMENT_NAME = "flight_delay"
+DEFAULT_EXPERIMENT_NAME = "flight-delay-prediction"
 
 
 def _is_local(artifact_location: str) -> bool:
