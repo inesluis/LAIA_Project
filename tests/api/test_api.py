@@ -145,6 +145,67 @@ def test_unseen_category_is_not_rejected_by_api(client):
     new_flight = {**FLIGHT, "ORIGIN": "ZZZ", "OP_UNIQUE_CARRIER": "XX"}
     assert client.post("/classify", json={"instances": [new_flight]}).status_code == 200
 
+# ---------- formato do leaderboard ----------
+
+# um voo com os 36 campos, tal como o leaderboard o mostra
+LEADERBOARD_FLIGHT = {
+    "FL_DATE": "2024-01-08", "YEAR": 2024, "QUARTER": 1, "MONTH": 1,
+    "DAY_OF_MONTH": 8, "DAY_OF_WEEK": 1, "OP_UNIQUE_CARRIER": "9E",
+    "OP_CARRIER_AIRLINE_ID": 20363, "OP_CARRIER": "9E", "TAIL_NUM": "N485PX",
+    "OP_CARRIER_FL_NUM": 4801, "ORIGIN_AIRPORT_ID": 12953,
+    "ORIGIN_AIRPORT_SEQ_ID": 1295304, "ORIGIN_CITY_MARKET_ID": 31703,
+    "ORIGIN": "LGA", "ORIGIN_CITY_NAME": "New York, NY", "ORIGIN_STATE_ABR": "NY",
+    "ORIGIN_STATE_FIPS": 36, "ORIGIN_STATE_NM": "New York", "ORIGIN_WAC": 22,
+    "DEST_AIRPORT_ID": 13871, "DEST_AIRPORT_SEQ_ID": 1387102,
+    "DEST_CITY_MARKET_ID": 33316, "DEST": "OMA", "DEST_CITY_NAME": "Omaha, NE",
+    "DEST_STATE_ABR": "NE", "DEST_STATE_FIPS": 31, "DEST_STATE_NM": "Nebraska",
+    "DEST_WAC": 65, "CRS_DEP_TIME": 856, "DEP_TIME_BLK": "0800-0859",
+    "CRS_ARR_TIME": 1135, "ARR_TIME_BLK": "1100-1159",
+    "CRS_ELAPSED_TIME": 219.0, "DISTANCE": 1148.0, "DISTANCE_GROUP": 5,
+}
+
+def test_leaderboard_batch_of_1000_is_accepted(client):
+    body = {"request_id": "abc", "mode": "sandbox", "instances": [LEADERBOARD_FLIGHT] * 1000}
+    r = client.post("/classify", json=body)
+    assert r.status_code == 200
+    assert len(r.json()["classifications"]) == 1000
+
+@pytest.mark.parametrize("field", list(FLIGHT))
+def test_null_value_is_accepted(client, field):
+    # um null num voo não pode rejeitar o lote inteiro
+    r = client.post("/classify", json={"instances": [FLIGHT, {**FLIGHT, field: None}]})
+    assert r.status_code == 200
+    assert len(r.json()["classifications"]) == 2
+
+def test_unknown_mode_returns_422(client):
+    assert client.post("/classify", json={"mode": "other", "instances": [FLIGHT]}).status_code == 422
+
+# ---------- /labels ----------
+
+LABELS_BODY = {
+    "request_id": "abc",
+    "mode": "live",
+    "labels": ["on_time", "severe_delay"],
+    "outcomes": [
+        {"DEP_TIME": 851, "ARR_DELAY": -11.0, "CARRIER_DELAY": None},
+        {"DEP_TIME": 1832, "ARR_DELAY": 88.0, "CARRIER_DELAY": 0.0},
+    ],
+}
+
+def test_labels_are_acknowledged(client):
+    r = client.post("/labels", json=LABELS_BODY)
+    assert r.status_code == 200
+    assert r.json() == {"status": "received"}
+
+@pytest.mark.parametrize(
+    "change",
+    [{"labels": ["on_time", "invented_label"]}, {"labels": ["on_time"]}, {"request_id": None}],
+)
+def test_invalid_labels_body_returns_422(client, change):
+    assert client.post("/labels", json={**LABELS_BODY, **change}).status_code == 422
+
+# ---------- modelo real ----------
+
 @pytest.mark.skip(reason="aguarda o modelo real (pipeline com handle_unknown)")
 def test_unseen_category_with_real_model(monkeypatch):
     # TODO: com MODEL_URI a apontar para o modelo registado (ou um pipeline

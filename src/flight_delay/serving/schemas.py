@@ -1,26 +1,30 @@
-# Schemas de entrada e saída do endpoint /classify 
+# Schemas de entrada e saída dos endpoints /classify e /labels
 
-# nota: é PROVISÓRIO - os campos e os nomes vêm das colunas BTS permitidas (antes da partida)  
+# nota: os nomes seguem a especificação do leaderboard (36 campos). Por agora só estão
+# declarados 8; os restantes são ignorados até se ligar o modelo real.
 # final version tem de seguir o data contract do pedro
 
 from datetime import date
-from typing import List, Literal, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Any, Dict, List, Literal, Optional
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Label = Literal["on_time", "moderate_delay", "severe_delay"]
+Mode = Literal["sandbox", "live"]
 
 class FlightRecord(BaseModel): # um voo, com atributos disponíveis antes da partida programada  
      
     model_config = ConfigDict(extra="ignore") # se enviar campos a mais ignoram-se, não se rejeitam 
 
-    FL_DATE: date
-    OP_UNIQUE_CARRIER: str          # nome exato a confirmar com A/B
-    ORIGIN: str                     # str livre: aeroportos novos não dão erro
-    DEST: str
-    CRS_DEP_TIME: int = Field(ge=0, le=2400)    
-    CRS_ARR_TIME: int = Field(ge=0, le=2400)
+    # Optional sem valor por defeito = o campo tem de vir, mas pode ser null.
+    # Os limites (ge, le, gt) continuam a aplicar-se quando há valor.
+    FL_DATE: Optional[date]
+    OP_UNIQUE_CARRIER: Optional[str]
+    ORIGIN: Optional[str]           # str livre: aeroportos novos não dão erro
+    DEST: Optional[str]
+    CRS_DEP_TIME: Optional[int] = Field(..., ge=0, le=2400)
+    CRS_ARR_TIME: Optional[int] = Field(..., ge=0, le=2400)
     CRS_ELAPSED_TIME: Optional[float] = None # se o modelo do cura souber lidar com missing data
-    DISTANCE: float = Field(gt=0)
+    DISTANCE: Optional[float] = Field(..., gt=0)
 # outra opção é ter um flightrecord gerado a partir de um ficheiro (util para mim, A e B) ver vantagens e desvantagens de cada abordagem.
 
 """
@@ -41,7 +45,23 @@ FlightRecord = build_flight_record()
 
 """
 class ClassifyRequest(BaseModel):
+    # opcionais: o exemplo do enunciado e o smoke test não os enviam
+    request_id: Optional[str] = None
+    mode: Optional[Mode] = None
     instances: List[FlightRecord]
 
 class ClassifyResponse(BaseModel):
     classifications: List[Label]
+
+class LabelsRequest(BaseModel):
+    # resultados reais que o leaderboard envia para /labels
+    request_id: str
+    mode: Mode
+    labels: List[Label]
+    outcomes: List[Dict[str, Any]]  # dados pós-voo; nunca entram na previsão
+
+    @model_validator(mode="after")
+    def same_length(self):
+        if len(self.labels) != len(self.outcomes):
+            raise ValueError("labels e outcomes têm de ter o mesmo tamanho")
+        return self
